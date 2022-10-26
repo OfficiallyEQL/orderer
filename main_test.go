@@ -3,39 +3,37 @@ package main
 import (
 	"bytes"
 	"io"
-	"os"
 	"testing"
 
+	"github.com/alecthomas/kong"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRun(t *testing.T) {
 	got := &bytes.Buffer{}
-	cfg := testConfig(t, got)
+	args := []string{"--input", "testdata/order1.json"}
+	cfg := testConfig(t, args, got)
 	err := cfg.Run()
 	require.NoError(t, err)
-	store := getenv(t, "SHOPIFY_STORE")
-	want := `
-Syncing order for store "` + store + `"
-Order count: 0
-`
-	require.Equal(t, want[1:], got.String())
+	want := "order created, ID:"
+	require.Equal(t, want, got.String()[:len(want)])
 }
 
-func testConfig(t *testing.T, out io.Writer) *Config {
+func testConfig(t *testing.T, args []string, out io.Writer) *Config {
 	t.Helper()
-	return &Config{
-		Store: getenv(t, "SHOPIFY_STORE"),
-		Token: getenv(t, "SHOPIFY_TOKEN"),
-		out:   out,
-	}
+	options := append([]kong.Option{kong.Exit(testExit(t))}, kongOpts...)
+	cfg := &Config{}
+	parser, err := kong.New(cfg, options...)
+	require.NoError(t, err)
+	_, err = parser.Parse(args)
+	require.NoError(t, err)
+	cfg.out = out
+	return cfg
 }
 
-func getenv(t *testing.T, name string) string {
-	t.Helper()
-	val, ok := os.LookupEnv(name)
-	if !ok {
-		t.Fatalf("missing environment variable %s", name)
+func testExit(t *testing.T) func(int) {
+	return func(int) {
+		t.Helper()
+		t.Fatalf("unexpected exit()")
 	}
-	return val
 }
