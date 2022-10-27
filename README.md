@@ -14,9 +14,12 @@ Alternatively you can download the executable directly from [releases](https://g
 After installation try
 
 	orderer --version
-	orderer --store julias-delights --token ${SHOPIFY_TOKEN} --input testdata/order1.json
 
-Request `${SHOPIFY_TOKEN}` from Julia or use your own store, admin token and product ID.
+	export SHOPIFY_STORE=julias-delights
+	export SHOPIFY_TOKEN=shpat_6a....5470  # ask Julia for token or setup your own store and admin token.
+	
+	orderer create testdata/order.json
+	orderer list testdata/order.json
 
 [releases]: https://github.com/juliaogris/orderer/releases
 
