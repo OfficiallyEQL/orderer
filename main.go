@@ -38,10 +38,11 @@ type CLI struct {
 }
 
 type Config struct {
-	Store  string `required:"" help:"Shopify store name as found in <name>.myshopify.com URL."`
-	Token  string `required:"" help:"Shopify Admin token."`
-	out    io.Writer
-	client *goshopify.Client
+	Store       string   `required:"" help:"Shopify store name as found in <name>.myshopify.com URL."`
+	Token       string   `required:"" help:"Shopify Admin token."`
+	ShopifyLogs LogLevel `short:"L" help:"Log level" enum:"debug,info,warn,error,none" default:"none"`
+	out         io.Writer
+	client      *goshopify.Client
 }
 
 type GetCmd struct {
@@ -97,9 +98,14 @@ func (c *Config) AfterApply() error {
 		goshopify.WithVersion("2019-04"),
 		goshopify.WithRetry(5),
 	}
+	if c.ShopifyLogs != LogLevelNone {
+		logger := NewLogger(os.Stdout, c.ShopifyLogs)
+		opts = append(opts, goshopify.WithLogger(logger))
+	}
 	c.client = goshopify.NewClient(goshopify.App{}, c.Store, c.Token, opts...)
 	return nil
 }
+
 func (c *GetCmd) Run() error {
 	order, err := c.client.Order.Get(c.ID, nil)
 	if err != nil {

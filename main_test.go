@@ -73,7 +73,13 @@ func testConfig(t *testing.T, out io.Writer) *Config {
 	t.Helper()
 	store := getenv(t, "SHOPIFY_STORE")
 	token := getenv(t, "SHOPIFY_TOKEN")
-	client := goshopify.NewClient(goshopify.App{}, store, token)
+	logger := NewLogger(io.Discard, LogLevelDebug)
+	opts := []goshopify.Option{
+		goshopify.WithVersion("2019-04"),
+		goshopify.WithRetry(2),
+		goshopify.WithLogger(logger),
+	}
+	client := goshopify.NewClient(goshopify.App{}, store, token, opts...)
 	return &Config{
 		out:    out,
 		client: client,
