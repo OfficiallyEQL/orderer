@@ -5,12 +5,11 @@
     "line_items":
     [
         {
-            "product_id": 7974172852512,
-            "title": "Medium",
-            "sku": "gdck-m",
+            "product_id": 7838378262746,
+            "title": "Unit test shoe",
             "quantity": 1,
-            "price": 15,
-            "total": 15
+            "price": 1,
+            "total": 1
         }
     ]
 }

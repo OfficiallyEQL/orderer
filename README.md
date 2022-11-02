@@ -6,10 +6,10 @@
 
 Install `orderer` with
 
-	brew tap juliaogris/tap
+	brew tap OfficiallyEQL/tap
 	brew install orderer
 
-Alternatively you can download the executable directly from [releases](https://github.com/juliaogris/orderer/releases) or install with `go install github.com/juliaogris/orderer@latest`
+Alternatively you can download the executable directly from [releases](https://github.com/OfficiallyEQL/orderer/releases) or install with `go install github.com/OfficiallyEQL/orderer@latest`
 
 After installation try
 
@@ -21,7 +21,7 @@ After installation try
 	orderer create testdata/order.json
 	orderer list testdata/order.json
 
-[releases]: https://github.com/juliaogris/orderer/releases
+[releases]: https://github.com/OfficiallyEQL/orderer/releases
 
 ## Development
 
