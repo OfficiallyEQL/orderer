@@ -1,6 +1,6 @@
 brews:
   - tap:
-      owner: juliaogris
+      owner: OfficiallyEQL
       name: homebrew-tap
       branch: master
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
@@ -10,7 +10,7 @@ brews:
       email: bot@goreleaser.com
 
     commit_msg_template: "Update brew formula for {{ .ProjectName }} version {{ .Tag }}"
-    homepage: "https://github.com/juliaogris/orderer"
+    homepage: "https://github.com/OfficiallyEQL/orderer"
     description: "orderer is a CLI for importing orders into shopify."
     license: "Apache-2.0"
 

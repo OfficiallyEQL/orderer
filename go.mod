@@ -1,4 +1,4 @@
-module github.com/juliaogris/orderer
+module github.com/OfficiallyEQL/orderer
 
 go 1.19
 
