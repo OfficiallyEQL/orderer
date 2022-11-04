@@ -3,7 +3,6 @@ brews:
       owner: OfficiallyEQL
       name: homebrew-tap
       branch: master
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
 
     commit_author:
       name: goreleaserbot

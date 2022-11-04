@@ -52,7 +52,7 @@ type GetCmd struct {
 
 type ListCmd struct {
 	Config
-	Order *goshopify.Order `arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order name to be listed (only name matters)"`
+	Order *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order name to be listed (only name matters)"`
 	Name  string
 }
 
@@ -75,7 +75,7 @@ type UpdateCmd struct {
 
 type DeleteCmd struct {
 	Config
-	Order  *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
+	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
 	Name   string
 	Unique bool `short:"u" help:"assert order name is used at most once"`
 }
