@@ -81,7 +81,7 @@ func TestRun(t *testing.T) {
 
 func testConfig(t *testing.T, out io.Writer) *Config {
 	t.Helper()
-	store := getenv(t, "SHOPIFY_STORE")
+	store := "eql-dev"
 	token := getenv(t, "SHOPIFY_TOKEN")
 	logger := NewLogger(io.Discard, LogLevelDebug)
 	opts := []goshopify.Option{
