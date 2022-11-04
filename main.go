@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/OfficiallyEQL/orderer/order"
 	"github.com/alecthomas/kong"
 	goshopify "github.com/bold-commerce/go-shopify/v3"
 )
@@ -60,18 +61,20 @@ type CreateCmd struct {
 	Config
 	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be created"`
 	Unique        bool             `short:"u" help:"assert order name is new"`
-	VerifyProdcut bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
+	VerifyProduct bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
 }
 
 type MergeCmd struct {
 	Config
-	Order  *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be merged (created or updated)"`
-	Unique bool             `short:"u" help:"assert order name is used at most once"`
+	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be merged (created or updated)"`
+	Unique        bool             `short:"u" help:"assert order name is used at most once"`
+	VerifyProduct bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
 }
 
 type UpdateCmd struct {
 	Config
-	Order *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be updated"`
+	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be updated"`
+	VerifyProduct bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
 }
 
 type DeleteCmd struct {
@@ -133,7 +136,7 @@ func (c *ListCmd) OrderName() string {
 }
 
 func (c *ListCmd) Run() error {
-	orders, err := listOrders(c.client, c.OrderName())
+	orders, err := order.List(c.client, c.OrderName())
 	if err != nil {
 		return err
 	}
@@ -164,7 +167,7 @@ func (c *DeleteCmd) OrderName() string {
 }
 
 func (c *DeleteCmd) Run() error {
-	orders, err := listOrders(c.client, c.OrderName())
+	orders, err := order.List(c.client, c.OrderName())
 	if err != nil {
 		return err
 	}
@@ -182,89 +185,32 @@ func (c *DeleteCmd) Run() error {
 }
 
 func (c *CreateCmd) Run() error {
-	if c.Unique {
-		orders, err := listOrders(c.client, c.Order.Name)
-		if err != nil {
-			return err
-		}
-		if len(orders) != 0 {
-			return fmt.Errorf("order with name %q already exists", c.Order.Name)
-		}
-	}
-	if c.VerifyProdcut {
-		for _, lineItem := range c.Order.LineItems {
-			if lineItem.VariantID == 0 {
-				return fmt.Errorf("missing variantID for lineItem %v", lineItem)
-			}
-			if _, err := c.client.Variant.Get(lineItem.VariantID, nil); err != nil {
-				return fmt.Errorf("cannot verify VariantID '%d': %w", lineItem.VariantID, err)
-			}
-		}
-	}
-	order, err := c.client.Order.Create(*c.Order)
+	opts := order.CreateOptions{Unique: c.Unique, VerifyProduct: c.VerifyProduct}
+	o, err := order.Create(c.client, c.Order, opts)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(c.out, "order created, ID:", order.ID)
+	fmt.Fprintln(c.out, "order created, ID:", o.ID)
 	return nil
 }
 
 func (c *UpdateCmd) Run() error {
-	orders, err := listOrders(c.client, c.Order.Name)
+	o, err := order.Update(c.client, c.Order)
 	if err != nil {
 		return err
 	}
-	if len(orders) == 0 {
-		return fmt.Errorf("order with name %q does not exist", c.Order.Name)
-	}
-	if len(orders) > 1 {
-		return fmt.Errorf("more than one order with name %q", c.Order.Name)
-	}
-	order := orders[0]
-	if _, err = c.client.Order.Update(order); err != nil {
-		return err
-	}
-	fmt.Fprintln(c.out, "order updated, ID:", order.ID)
+	fmt.Fprintln(c.out, "order updated, ID:", o.ID)
 	return nil
 }
 
 func (c *MergeCmd) Run() error {
-	orders, err := listOrders(c.client, c.Order.Name)
+	opts := order.MergeOptions{VerifyProduct: c.VerifyProduct}
+	result, err := order.Merge(c.client, c.Order, opts)
 	if err != nil {
 		return err
 	}
-	if len(orders) > 1 {
-		return fmt.Errorf("expected at most one order with name %q, found %d'", c.Order.Name, len(orders))
-	}
-	if len(orders) == 0 {
-		order, err := c.client.Order.Create(*c.Order)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(c.out, "order merged (created), ID:", order.ID)
-		return nil
-	}
-	order, err := c.client.Order.Update(orders[0])
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(c.out, "order merged (updated), ID:", order.ID)
+	fmt.Fprintf(c.out, "order merged (%s), ID: %d\n", result.Label, result.OrderID)
 	return nil
-}
-
-func listOrders(client *goshopify.Client, orderName string) ([]goshopify.Order, error) {
-	if orderName == "" {
-		return nil, fmt.Errorf("order name is empty")
-	}
-	ordersResource := goshopify.OrdersResource{}
-	query := struct {
-		Name string `url:"name"`
-	}{Name: orderName}
-	err := client.Get("orders.json", &ordersResource, query)
-	if err != nil {
-		return nil, err
-	}
-	return ordersResource.Orders, nil
 }
 
 var JSONFileMapper = kong.MapperFunc(decodeJSONFile)
