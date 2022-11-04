@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	goshopify "github.com/bold-commerce/go-shopify/v3"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,8 @@ func TestRun(t *testing.T) {
 
 	cfg := testConfig(t, got)
 	order := testOrder(t, "testdata/order.json")
+	uniqueOrderName := fmt.Sprintf("%s-%d", order.Name, time.Now().UnixMilli()%10000) // to avoid collisions on concurrent runs
+	order.Name = uniqueOrderName
 	deleteCmd := DeleteCmd{Config: *cfg, Order: order}
 	require.NoError(t, deleteCmd.Run())
 
@@ -29,11 +32,14 @@ func TestRun(t *testing.T) {
 	require.Equal(t, want, gotStr[:len(want)])
 	id := gotStr[len(want) : len(gotStr)-1]
 
+	// account for latency between order creation and availability for listing
+	time.Sleep(10 * time.Second)
+
 	got.Reset()
 	listCmd := ListCmd{Config: *cfg, Order: order}
 	require.NoError(t, listCmd.Run())
 	want = "number of orders: 1\n"
-	want += fmt.Sprintf("id: %s name: order 1 email: jay@example.com\n", id)
+	want += fmt.Sprintf("id: %s name: %s email: jay@example.com\n", id, uniqueOrderName)
 	require.Equal(t, want, got.String())
 
 	got.Reset()
@@ -56,6 +62,10 @@ func TestRun(t *testing.T) {
 
 	require.NoError(t, createCmd.Run())
 	createCmd.Unique = true
+
+	// account for latency between order creation and availability for listing
+	time.Sleep(10 * time.Second)
+
 	require.Error(t, createCmd.Run())
 	deleteCmd.Unique = true
 	require.Error(t, deleteCmd.Run())

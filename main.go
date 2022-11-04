@@ -29,7 +29,7 @@ identifier.
 
 type CLI struct {
 	Get     GetCmd           `cmd:"" help:"Get order by order ID"`
-	List    ListCmd          `cmd:"" help:"List orders with matching name"`
+	List    ListCmd          `cmd:"" help:"List first 50 orders with matching name"`
 	Create  CreateCmd        `cmd:"" help:"Create order"`
 	Update  UpdateCmd        `cmd:"" help:"Update order"`
 	Merge   MergeCmd         `cmd:"" help:"Create or update order"`
@@ -40,7 +40,7 @@ type CLI struct {
 type Config struct {
 	Store       string   `required:"" help:"Shopify store name as found in <name>.myshopify.com URL."`
 	Token       string   `required:"" help:"Shopify Admin token."`
-	ShopifyLogs LogLevel `short:"L" help:"Log level" enum:"debug,info,warn,error,none" default:"none"`
+	ShopifyLogs LogLevel `short:"L" help:"Log level (debug,info,warn,error,none)" enum:"debug,info,warn,error,none" default:"none"`
 	out         io.Writer
 	client      *goshopify.Client
 }
@@ -118,17 +118,21 @@ func (c *ListCmd) AfterApply() error {
 	if err := c.Config.AfterApply(); err != nil {
 		return err
 	}
-	if c.Name == "" {
-		if c.Order.Name == "" {
-			return errors.New("no order name given")
-		}
-		c.Name = c.Order.Name
+	if c.Name == "" && c.Order.Name == "" {
+		return errors.New("no order name given")
 	}
 	return nil
 }
 
+func (c *ListCmd) OrderName() string {
+	if c.Name != "" {
+		return c.Name
+	}
+	return c.Order.Name
+}
+
 func (c *ListCmd) Run() error {
-	orders, err := c.client.Order.List(listOpts(c.Name))
+	orders, err := listOrders(c.client, c.OrderName())
 	if err != nil {
 		return err
 	}
@@ -145,17 +149,21 @@ func (c *DeleteCmd) AfterApply() error {
 	if err := c.Config.AfterApply(); err != nil {
 		return err
 	}
-	if c.Name == "" {
-		if c.Order.Name == "" {
-			return errors.New("no order name given")
-		}
-		c.Name = c.Order.Name
+	if c.Name == "" && c.Order.Name == "" {
+		return errors.New("no order name given")
 	}
 	return nil
 }
 
+func (c *DeleteCmd) OrderName() string {
+	if c.Name != "" {
+		return c.Name
+	}
+	return c.Order.Name
+}
+
 func (c *DeleteCmd) Run() error {
-	orders, err := c.client.Order.List(listOpts(c.Name))
+	orders, err := listOrders(c.client, c.OrderName())
 	if err != nil {
 		return err
 	}
@@ -174,7 +182,7 @@ func (c *DeleteCmd) Run() error {
 
 func (c *CreateCmd) Run() error {
 	if c.Unique {
-		orders, err := c.client.Order.List(listOpts(c.Order.Name))
+		orders, err := listOrders(c.client, c.Order.Name)
 		if err != nil {
 			return err
 		}
@@ -191,7 +199,7 @@ func (c *CreateCmd) Run() error {
 }
 
 func (c *UpdateCmd) Run() error {
-	orders, err := c.client.Order.List(listOpts(c.Order.Name))
+	orders, err := listOrders(c.client, c.Order.Name)
 	if err != nil {
 		return err
 	}
@@ -210,7 +218,7 @@ func (c *UpdateCmd) Run() error {
 }
 
 func (c *MergeCmd) Run() error {
-	orders, err := c.client.Order.List(listOpts(c.Order.Name))
+	orders, err := listOrders(c.client, c.Order.Name)
 	if err != nil {
 		return err
 	}
@@ -233,8 +241,19 @@ func (c *MergeCmd) Run() error {
 	return nil
 }
 
-func listOpts(name string) goshopify.OrderListOptions {
-	return goshopify.OrderListOptions{Order: name}
+func listOrders(client *goshopify.Client, orderName string) ([]goshopify.Order, error) {
+	if orderName == "" {
+		return nil, fmt.Errorf("order name is empty")
+	}
+	ordersResource := goshopify.OrdersResource{}
+	query := struct {
+		Name string `url:"name"`
+	}{Name: orderName}
+	err := client.Get("orders.json", &ordersResource, query)
+	if err != nil {
+		return nil, err
+	}
+	return ordersResource.Orders, nil
 }
 
 var JSONFileMapper = kong.MapperFunc(decodeJSONFile)
