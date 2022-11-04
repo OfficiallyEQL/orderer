@@ -58,8 +58,9 @@ type ListCmd struct {
 
 type CreateCmd struct {
 	Config
-	Order  *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be created"`
-	Unique bool             `short:"u" help:"assert order name is new"`
+	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be created"`
+	Unique        bool             `short:"u" help:"assert order name is new"`
+	VerifyProdcut bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
 }
 
 type MergeCmd struct {
@@ -188,6 +189,16 @@ func (c *CreateCmd) Run() error {
 		}
 		if len(orders) != 0 {
 			return fmt.Errorf("order with name %q already exists", c.Order.Name)
+		}
+	}
+	if c.VerifyProdcut {
+		for _, lineItem := range c.Order.LineItems {
+			if lineItem.VariantID == 0 {
+				return fmt.Errorf("missing variantID for lineItem %v", lineItem)
+			}
+			if _, err := c.client.Variant.Get(lineItem.VariantID, nil); err != nil {
+				return fmt.Errorf("cannot verify VariantID '%d': %w", lineItem.VariantID, err)
+			}
 		}
 	}
 	order, err := c.client.Order.Create(*c.Order)

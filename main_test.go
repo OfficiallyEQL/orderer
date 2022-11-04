@@ -25,7 +25,7 @@ func TestRun(t *testing.T) {
 	require.NoError(t, deleteCmd.Run())
 
 	got.Reset()
-	createCmd := CreateCmd{Config: *cfg, Order: order}
+	createCmd := CreateCmd{Config: *cfg, Order: order, VerifyProdcut: true}
 	require.NoError(t, createCmd.Run())
 	want := "order created, ID: "
 	gotStr := got.String()
