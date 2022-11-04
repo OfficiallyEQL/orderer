@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - run: ./.github/scripts/app_token #TODO: remove, just for testing
+      env:
+        GITHUB_APP_ID: ${{ secrets.APPNAME_GITHUB_APP_ID }}
+        GITHUB_APP_PEM: ${{ secrets.APPNAME_GITHUB_APP_PEM }}
     - run: ./bin/make ci
 
   release:
@@ -27,4 +31,5 @@ jobs:
     - run: ./bin/make release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        GITHUB_APP_ID: ${{ secrets.APPNAME_GITHUB_APP_ID }}
+        GITHUB_APP_PEM: ${{ secrets.APPNAME_GITHUB_APP_PEM }}
