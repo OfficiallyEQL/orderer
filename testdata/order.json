@@ -1,5 +1,5 @@
 {
-    "name" : "order 1",
+    "name" : "order1",
     "email": "jay@example.com",
     "fulfillment_status": "unfulfilled",
     "line_items":

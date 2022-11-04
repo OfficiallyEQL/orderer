@@ -27,4 +27,5 @@ jobs:
     - run: ./bin/make release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        GITHUB_APP_ID: ${{ secrets.EQLBREWPUBLISHER_GITHUB_APP_ID }}
+        GITHUB_APP_PEM: ${{ secrets.EQLBREWPUBLISHER_GITHUB_APP_PEM }}
