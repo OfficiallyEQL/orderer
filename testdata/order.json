@@ -5,8 +5,7 @@
     "line_items":
     [
         {
-            "product_id": 7838378262746,
-            "title": "Unit test shoe",
+            "variant_id": 43434424271066,
             "quantity": 1,
             "price": 1,
             "total": 1
