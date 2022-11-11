@@ -35,6 +35,7 @@ type CLI struct {
 	Update  UpdateCmd        `cmd:"" help:"Update order"`
 	Merge   MergeCmd         `cmd:"" help:"Create or update order"`
 	Delete  DeleteCmd        `cmd:"" help:"Delete order"`
+	Variant VariantCmd       `cmd:"" help:"Get product variant by variant ID"`
 	Version kong.VersionFlag `help:"Show version." env:"-"`
 }
 
@@ -84,6 +85,21 @@ type DeleteCmd struct {
 	Unique bool `short:"u" help:"assert order name is used at most once"`
 }
 
+type VariantCmd struct {
+	Get    VariantGetCmd    `cmd:"" help:"Get Variant by ID"`
+	Create VariantCreateCmd `cmd:"" help:"Get Variant"`
+}
+
+type VariantGetCmd struct {
+	Config
+	ID int64 `arg:"" required:"" help:"variant ID"`
+}
+
+type VariantCreateCmd struct {
+	Config
+	Variant *goshopify.Variant `arg:"" type:"jsonfile" placeholder:"variant.json" help:"File containing JSON encoded variant to be created"`
+}
+
 var kongOpts = []kong.Option{
 	kong.Description(description),
 	kong.DefaultEnvars("shopify"),
@@ -116,6 +132,22 @@ func (c *GetCmd) Run() error {
 		return err
 	}
 	return json.NewEncoder(c.out).Encode(order)
+}
+
+func (c *VariantGetCmd) Run() error {
+	variant, err := c.client.Variant.Get(c.ID, nil)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(variant)
+}
+
+func (c *VariantCreateCmd) Run() error {
+	variant, err := c.client.Variant.Create(c.Variant.ProductID, *c.Variant)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(variant)
 }
 
 func (c *ListCmd) AfterApply() error {
