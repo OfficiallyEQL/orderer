@@ -9,6 +9,7 @@ import (
 type CreateOptions struct {
 	Unique        bool
 	VerifyProduct bool
+	Inventory     bool
 }
 
 type MergeOptions struct {
@@ -22,6 +23,26 @@ type UpdateOptions struct {
 type MergeResult struct {
 	Label   string // created or updated
 	OrderID int64
+}
+
+type InventoryLevel struct {
+	Available       int   `json:"available"`
+	LocationID      int64 `json:"location_id"`
+	InventoryItemID int64 `json:"inventory_item_id"`
+}
+
+type InventoryLevelAdjustment struct {
+	AvailableAdjustment int   `json:"available_adjustment"`
+	LocationID          int64 `json:"location_id"`
+	InventoryItemID     int64 `json:"inventory_item_id"`
+}
+
+type InventoryLevelsResource struct {
+	InventoryLevels []*InventoryLevel `json:"inventory_levels"`
+}
+
+type InventoryLevelResource struct {
+	InventoryLevel *InventoryLevel `json:"inventory_level"`
 }
 
 func List(client *goshopify.Client, orderName string) ([]goshopify.Order, error) {
@@ -49,15 +70,25 @@ func Create(client *goshopify.Client, order *goshopify.Order, opts CreateOptions
 			return nil, fmt.Errorf("order with name %q already exists", order.Name)
 		}
 	}
-	if opts.VerifyProduct {
-		err := verifyProduct(client, order)
-		if err != nil {
+	var inventories []*InventoryLevel
+	if opts.VerifyProduct || opts.Inventory {
+		var err error
+		if inventories, err = getInventories(client, order); err != nil {
 			return nil, err
 		}
 	}
 	result, err := client.Order.Create(*order)
 	if err != nil {
 		return nil, err
+	}
+	if !opts.Inventory {
+		return result, nil
+	}
+	for _, i := range inventories {
+		_, err := AdjustIventoryLevel(client, i.LocationID, i.InventoryItemID, 0, -1)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
 }
@@ -88,13 +119,6 @@ func Merge(client *goshopify.Client, order *goshopify.Order, opts MergeOptions) 
 	if len(orders) > 1 {
 		return nil, fmt.Errorf("expected at most one order with name %q, found %d'", order.Name, len(orders))
 	}
-	if opts.VerifyProduct {
-		err := verifyProduct(client, order)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if len(orders) == 0 {
 		order, err := Create(client, order, CreateOptions{VerifyProduct: opts.VerifyProduct})
 		if err != nil {
@@ -102,6 +126,12 @@ func Merge(client *goshopify.Client, order *goshopify.Order, opts MergeOptions) 
 		}
 		result := &MergeResult{Label: "created", OrderID: order.ID}
 		return result, nil
+	}
+	if opts.VerifyProduct {
+		_, err := getInventories(client, order)
+		if err != nil {
+			return nil, err
+		}
 	}
 	order.ID = orders[0].ID
 	order, err = client.Order.Update(*order)
@@ -112,14 +142,72 @@ func Merge(client *goshopify.Client, order *goshopify.Order, opts MergeOptions) 
 	return result, nil
 }
 
-func verifyProduct(client *goshopify.Client, order *goshopify.Order) error {
-	for _, lineItem := range order.LineItems {
-		if lineItem.VariantID == 0 {
-			return fmt.Errorf("missing variantID for lineItem %v", lineItem)
+func GetIventoryLevels(client *goshopify.Client, inventoryItemID, variantID int64) ([]*InventoryLevel, error) {
+	if inventoryItemID == 0 {
+		variant, err := client.Variant.Get(variantID, nil)
+		if err != nil {
+			return nil, err
 		}
-		if _, err := client.Variant.Get(lineItem.VariantID, nil); err != nil {
-			return fmt.Errorf("cannot verify VariantID '%d': %w", lineItem.VariantID, err)
+		inventoryItemID = variant.InventoryItemId
+	}
+	query := struct {
+		InventoryItemID int64 `url:"inventory_item_ids"`
+	}{InventoryItemID: inventoryItemID}
+	resource := InventoryLevelsResource{}
+	err := client.Get("inventory_levels.json", &resource, query)
+	if err != nil {
+		return nil, err
+	}
+	return resource.InventoryLevels, nil
+}
+
+func getInventories(client *goshopify.Client, order *goshopify.Order) ([]*InventoryLevel, error) {
+	levels := make([]*InventoryLevel, 0, len(order.LineItems))
+	for _, lineItem := range order.LineItems {
+		if lineItem.VariantID != 0 {
+			level, err := GetIventoryLevel(client, 0, lineItem.VariantID)
+			if err != nil {
+				return nil, err
+			}
+			levels = append(levels, level)
 		}
 	}
-	return nil
+	return levels, nil
+}
+
+func GetIventoryLevel(client *goshopify.Client, inventoryItemID, variantID int64) (*InventoryLevel, error) {
+	levels, err := GetIventoryLevels(client, inventoryItemID, variantID)
+	if err != nil {
+		return nil, err
+	}
+	if len(levels) != 1 {
+		return nil, fmt.Errorf("invalid inventory: product variant %d in multiple locations", variantID)
+	}
+	level := levels[0]
+	if level.Available < 1 {
+		return nil, fmt.Errorf("invalid inventory: not enough items available (%d)", level.Available)
+	}
+	return level, nil
+}
+
+func AdjustIventoryLevel(client *goshopify.Client, locaitonID, inventoryItemID, variantID int64, amount int) (*InventoryLevel, error) {
+	adjustment := InventoryLevelAdjustment{
+		InventoryItemID:     inventoryItemID,
+		LocationID:          locaitonID,
+		AvailableAdjustment: amount,
+	}
+	if inventoryItemID == 0 || locaitonID == 0 {
+		level, err := GetIventoryLevel(client, inventoryItemID, variantID)
+		if err != nil {
+			return nil, err
+		}
+		adjustment.InventoryItemID = level.InventoryItemID
+		adjustment.LocationID = level.LocationID
+	}
+	resource := InventoryLevelResource{}
+	err := client.Post("inventory_levels/adjust.json", adjustment, &resource)
+	if err != nil {
+		return nil, err
+	}
+	return resource.InventoryLevel, nil
 }

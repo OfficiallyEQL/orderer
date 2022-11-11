@@ -29,19 +29,23 @@ identifier.
 )
 
 type CLI struct {
-	Get     GetCmd           `cmd:"" help:"Get order by order ID"`
-	List    ListCmd          `cmd:"" help:"List first 50 orders with matching name"`
-	Create  CreateCmd        `cmd:"" help:"Create order"`
-	Update  UpdateCmd        `cmd:"" help:"Update order"`
-	Merge   MergeCmd         `cmd:"" help:"Create or update order"`
-	Delete  DeleteCmd        `cmd:"" help:"Delete order"`
+	Get    GetCmd    `cmd:"" help:"Get order by order ID"`
+	List   ListCmd   `cmd:"" help:"List first 50 orders with matching name"`
+	Create CreateCmd `cmd:"" help:"Create order"`
+	Update UpdateCmd `cmd:"" help:"Update order"`
+	Merge  MergeCmd  `cmd:"" help:"Create or update order"`
+	Delete DeleteCmd `cmd:"" help:"Delete order"`
+
+	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
+	Inventory InventoryCmd `cmd:"" help:"Get inventory level including location for inventory_item_id or variant_id"`
+
 	Version kong.VersionFlag `help:"Show version." env:"-"`
 }
 
 type Config struct {
 	Store       string   `required:"" help:"Shopify store name as found in <name>.myshopify.com URL."`
 	Token       string   `required:"" help:"Shopify Admin token."`
-	ShopifyLogs LogLevel `short:"L" help:"Log level (debug,info,warn,error,none)" enum:"debug,info,warn,error,none" default:"none"`
+	ShopifyLogs LogLevel `short:"L" help:"Log level (debug, info, warn, error, none)" enum:"debug,info,warn,error,none" default:"none"`
 	out         io.Writer
 	client      *goshopify.Client
 }
@@ -62,6 +66,7 @@ type CreateCmd struct {
 	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be created"`
 	Unique        bool             `short:"u" help:"assert order name is new"`
 	VerifyProduct bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
+	Inventory     bool             `short:"i" help:"update inventory (-1) when order is created"`
 }
 
 type MergeCmd struct {
@@ -69,6 +74,7 @@ type MergeCmd struct {
 	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be merged (created or updated)"`
 	Unique        bool             `short:"u" help:"assert order name is used at most once"`
 	VerifyProduct bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
+	Inventory     bool             `short:"i" help:"update inventory (-1) if order is created"`
 }
 
 type UpdateCmd struct {
@@ -82,6 +88,40 @@ type DeleteCmd struct {
 	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
 	Name   string
 	Unique bool `short:"u" help:"assert order name is used at most once"`
+}
+
+type VariantCmd struct {
+	Get    VariantGetCmd    `cmd:"" help:"Get Variant by ID"`
+	Create VariantCreateCmd `cmd:"" help:"Get Variant"`
+}
+
+type VariantGetCmd struct {
+	Config
+	ID int64 `arg:"" required:"" help:"variant ID"`
+}
+
+type VariantCreateCmd struct {
+	Config
+	Variant *goshopify.Variant `arg:"" type:"jsonfile" placeholder:"variant.json" help:"File containing JSON encoded variant to be created"`
+}
+
+type InventoryCmd struct {
+	Get    InventoryGetCmd    `cmd:"" help:"Get inventory levels by variant ID or inventory item ID"`
+	Adjust InventoryAdjustCmd `cmd:"" help:"Update inventory levels for given variant ID or inventory item ID."`
+}
+
+type InventoryGetCmd struct {
+	Config
+	InventoryItemID int64 `help:"inventory item ID" xor:"id"`
+	VariantID       int64 `help:"variant ID" xor:"id"`
+}
+
+type InventoryAdjustCmd struct {
+	Config
+	InventoryItemID int64 `help:"inventory item ID" xor:"id"`
+	VariantID       int64 `help:"variant ID" xor:"id"`
+	LocationID      int64 `help:"location ID of inventory to be adjusted"`
+	Amount          int   `help:"adjust inventory levels for given product. Use negative number to reduce inventory."`
 }
 
 var kongOpts = []kong.Option{
@@ -99,7 +139,7 @@ func main() {
 func (c *Config) AfterApply() error {
 	c.out = os.Stdout
 	opts := []goshopify.Option{
-		goshopify.WithVersion("2019-04"),
+		goshopify.WithVersion("2022-10"),
 		goshopify.WithRetry(5),
 	}
 	if c.ShopifyLogs != LogLevelNone {
@@ -116,6 +156,38 @@ func (c *GetCmd) Run() error {
 		return err
 	}
 	return json.NewEncoder(c.out).Encode(order)
+}
+
+func (c *VariantGetCmd) Run() error {
+	variant, err := c.client.Variant.Get(c.ID, nil)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(variant)
+}
+
+func (c *VariantCreateCmd) Run() error {
+	variant, err := c.client.Variant.Create(c.Variant.ProductID, *c.Variant)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(variant)
+}
+
+func (c *InventoryGetCmd) Run() error {
+	levels, err := order.GetIventoryLevels(c.client, c.InventoryItemID, c.VariantID)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(levels)
+}
+
+func (c *InventoryAdjustCmd) Run() error {
+	resp, err := order.AdjustIventoryLevel(c.client, c.LocationID, c.InventoryItemID, c.VariantID, c.Amount)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(resp)
 }
 
 func (c *ListCmd) AfterApply() error {
@@ -185,7 +257,11 @@ func (c *DeleteCmd) Run() error {
 }
 
 func (c *CreateCmd) Run() error {
-	opts := order.CreateOptions{Unique: c.Unique, VerifyProduct: c.VerifyProduct}
+	opts := order.CreateOptions{
+		Unique:        c.Unique,
+		VerifyProduct: c.VerifyProduct,
+		Inventory:     c.Inventory,
+	}
 	o, err := order.Create(c.client, c.Order, opts)
 	if err != nil {
 		return err
