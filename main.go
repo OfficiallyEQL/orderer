@@ -99,7 +99,7 @@ func main() {
 func (c *Config) AfterApply() error {
 	c.out = os.Stdout
 	opts := []goshopify.Option{
-		goshopify.WithVersion("2019-04"),
+		goshopify.WithVersion("2022-10"),
 		goshopify.WithRetry(5),
 	}
 	if c.ShopifyLogs != LogLevelNone {
