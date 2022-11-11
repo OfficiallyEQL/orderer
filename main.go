@@ -41,7 +41,7 @@ type CLI struct {
 type Config struct {
 	Store       string   `required:"" help:"Shopify store name as found in <name>.myshopify.com URL."`
 	Token       string   `required:"" help:"Shopify Admin token."`
-	ShopifyLogs LogLevel `short:"L" help:"Log level (debug,info,warn,error,none)" enum:"debug,info,warn,error,none" default:"none"`
+	ShopifyLogs LogLevel `short:"L" help:"Log level (debug, info, warn, error, none)" enum:"debug,info,warn,error,none" default:"none"`
 	out         io.Writer
 	client      *goshopify.Client
 }
