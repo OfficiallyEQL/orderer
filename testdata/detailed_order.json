@@ -1,0 +1,98 @@
+{
+  "name": "MWUXZxxxxx",
+  "email": "morgen@example.com",
+  "created_at": "2022-10-21T13:36:45+11:00",
+  "updated_at": "2022-10-21T13:36:46+11:00",
+  "processed_at": "2022-09-12T13:38:20+10:00",
+  "customer": {
+    "email": "morgen@example.comXX",
+    "first_name": "Mary",
+    "last_name": "Morgan",
+    "state": "disabled",
+    "verified_email": true,
+    "accepts_marketing": true,
+    "created_at": "2022-10-07T15:31:34+11:00",
+    "updated_at": "2022-10-21T13:36:46+11:00"
+  },
+  "billing_address": {
+    "address1": "12 Example St",
+    "city": "HappyTown",
+    "country": "Australia",
+    "country_code": "AU",
+    "first_name": "Mary",
+    "last_name": "Morgan",
+    "name": "Mary Morgan",
+    "phone": "+6141234566",
+    "province": "Victoria",
+    "province_code": "VIC",
+    "zip": "3333"
+  },
+  "shipping_address": {
+    "address1": "12 Example St",
+    "city": "HappyTown",
+    "country": "Australia",
+    "country_code": "AU",
+    "first_name": "Mary",
+    "last_name": "Morgan",
+    "latitude": -38.114263,
+    "longitude": 144.6681421,
+    "name": "Mary Morgan",
+    "phone": "+6141234566",
+    "province": "Victoria",
+    "province_code": "VIC",
+    "zip": "3333"
+  },
+  "currency": "AUD",
+  "total_price": "149.95",
+  "subtotal_price": "140",
+  "total_discounts": "0",
+  "total_line_items_price": "140",
+  "taxes_included": true,
+  "total_tax": "13.63",
+  "financial_status": "paid",
+  "buyer_accepts_marketing": true,
+  "line_items": [
+    {
+      "quantity": 1,
+      "price": "140",
+      "total_discount": "0",
+      "title": "Apple Puff Hood",
+      "variant_title": "Apple Puff Hood, M",
+      "name": "Apple Puff Hood - Apple Puff Hood, M",
+      "sku": "AAHA0922-M",
+      "taxable": true,
+      "fulfillment_service": "manual",
+      "requires_shipping": true,
+      "fulfillable_quantity": 1,
+      "tax_lines": [
+        {
+          "title": "GST",
+          "price": "12.73",
+          "rate": "0.1"
+        }
+      ]
+    }
+  ],
+  "shipping_lines": [
+    {
+      "title": "Domestic delivery",
+      "price": "9.95",
+      "code": "Domestic delivery",
+      "tax_lines": [
+        {
+          "title": "GST",
+          "price": "0.9",
+          "rate": "0.1"
+        }
+      ]
+    }
+  ],
+  "source_name": "SNEAKQL",
+  "tags": "SNEAKQL",
+  "payment_gateway_names": [
+    "manual (stripe)"
+  ],
+  "gateway": "manual (stripe)",
+  "confirmed": true,
+  "contact_email": "morgen@example.com"
+}
