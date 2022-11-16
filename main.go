@@ -29,12 +29,13 @@ identifier.
 )
 
 type CLI struct {
-	Get    GetCmd    `cmd:"" help:"Get order by order ID"`
-	List   ListCmd   `cmd:"" help:"List first 50 orders with matching name"`
-	Create CreateCmd `cmd:"" help:"Create order"`
-	Update UpdateCmd `cmd:"" help:"Update order"`
-	Merge  MergeCmd  `cmd:"" help:"Create or update order"`
-	Delete DeleteCmd `cmd:"" help:"Delete order"`
+	Get     GetCmd     `cmd:"" help:"Get order by order ID"`
+	List    ListCmd    `cmd:"" help:"List first 50 orders with matching name"`
+	Create  CreateCmd  `cmd:"" help:"Create order"`
+	Update  UpdateCmd  `cmd:"" help:"Update order"`
+	Merge   MergeCmd   `cmd:"" help:"Create or update order"`
+	Delete  DeleteCmd  `cmd:"" help:"Delete order"`
+	Replace ReplaceCmd `cmd:"" help:"Delete order first then create new one"`
 
 	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
 	Inventory InventoryCmd `cmd:"" help:"Get inventory level including location for inventory_item_id or variant_id"`
@@ -88,6 +89,11 @@ type DeleteCmd struct {
 	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
 	Name   string
 	Unique bool `short:"u" help:"assert order name is used at most once"`
+}
+
+type ReplaceCmd struct {
+	Config
+	Order *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be replaced"`
 }
 
 type VariantCmd struct {
@@ -248,19 +254,14 @@ func (c *DeleteCmd) OrderName() string {
 }
 
 func (c *DeleteCmd) Run() error {
-	orders, err := order.List(c.client, c.OrderName())
+	opts := order.DeleteOptions{Unique: c.Unique}
+	orderIDs, err := order.Delete(c.client, c.OrderName(), opts)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(c.out, "number of orders to delete:", len(orders))
-	if c.Unique && len(orders) > 1 {
-		return fmt.Errorf("more than one order with name %q", c.Name)
-	}
-	for _, o := range orders {
-		if err := c.client.Delete(fmt.Sprintf("orders/%d.json", o.ID)); err != nil {
-			return err
-		}
-		fmt.Fprintln(c.out, "order deleted, ID:", o.ID)
+	fmt.Fprintln(c.out, "number of orders to delete:", len(orderIDs))
+	for _, id := range orderIDs {
+		fmt.Fprintln(c.out, "order deleted, ID:", id)
 	}
 	return nil
 }

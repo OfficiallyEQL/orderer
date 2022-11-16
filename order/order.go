@@ -22,6 +22,10 @@ type UpdateOptions struct {
 	VerifyProduct bool
 }
 
+type DeleteOptions struct {
+	Unique bool
+}
+
 type MergeResult struct {
 	Label   string // created or updated
 	OrderID int64
@@ -159,6 +163,24 @@ func Merge(client *goshopify.Client, order *goshopify.Order, opts MergeOptions) 
 	}
 	result := &MergeResult{Label: "updated", OrderID: order.ID}
 	return result, nil
+}
+
+func Delete(client *goshopify.Client, orderName string, opts DeleteOptions) ([]int64, error) {
+	orders, err := List(client, orderName)
+	if err != nil {
+		return nil, err
+	}
+	if opts.Unique && len(orders) > 1 {
+		return nil, fmt.Errorf("more than one order with name %q", orderName)
+	}
+	var deletedIDs []int64
+	for _, o := range orders {
+		if err := client.Delete(fmt.Sprintf("orders/%d.json", o.ID)); err != nil {
+			return nil, err
+		}
+		deletedIDs = append(deletedIDs, o.ID)
+	}
+	return deletedIDs, nil
 }
 
 func GetIventoryLevels(client *goshopify.Client, inventoryItemID, variantID int64) ([]*InventoryLevel, error) {
