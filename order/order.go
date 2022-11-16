@@ -2,6 +2,8 @@ package order
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	goshopify "github.com/bold-commerce/go-shopify/v3"
 )
@@ -43,6 +45,23 @@ type InventoryLevelsResource struct {
 
 type InventoryLevelResource struct {
 	InventoryLevel *InventoryLevel `json:"inventory_level"`
+}
+
+type VariantGQLResult struct {
+	Data struct {
+		ProductVariants struct {
+			Edges []struct {
+				Node struct {
+					ID            string
+					Title         string
+					InventoryItem struct {
+						ID             string
+						LocationsCount int
+					}
+				}
+			}
+		}
+	}
 }
 
 func List(client *goshopify.Client, orderName string) ([]goshopify.Order, error) {
@@ -161,20 +180,6 @@ func GetIventoryLevels(client *goshopify.Client, inventoryItemID, variantID int6
 	return resource.InventoryLevels, nil
 }
 
-func getInventories(client *goshopify.Client, order *goshopify.Order) ([]*InventoryLevel, error) {
-	levels := make([]*InventoryLevel, 0, len(order.LineItems))
-	for _, lineItem := range order.LineItems {
-		if lineItem.VariantID != 0 {
-			level, err := GetIventoryLevel(client, 0, lineItem.VariantID)
-			if err != nil {
-				return nil, err
-			}
-			levels = append(levels, level)
-		}
-	}
-	return levels, nil
-}
-
 func GetIventoryLevel(client *goshopify.Client, inventoryItemID, variantID int64) (*InventoryLevel, error) {
 	levels, err := GetIventoryLevels(client, inventoryItemID, variantID)
 	if err != nil {
@@ -210,4 +215,58 @@ func AdjustIventoryLevel(client *goshopify.Client, locaitonID, inventoryItemID, 
 		return nil, err
 	}
 	return resource.InventoryLevel, nil
+}
+
+func GetVariantIDBySKU(client *goshopify.Client, sku string) (int64, error) {
+	requestPayload := struct {
+		Query     string `json:"query"`
+		Variables struct {
+			Filter string `json:"filter"`
+		} `json:"variables"`
+	}{
+		Query: "query($filter: String!) { productVariants(first: 2, query: $filter) { edges { node { id  title inventoryItem  { id locationsCount } } } } }",
+		Variables: struct {
+			Filter string `json:"filter"`
+		}{
+			Filter: fmt.Sprintf("sku:%s", sku),
+		},
+	}
+	resource := VariantGQLResult{}
+	err := client.Post("graphql.json", requestPayload, &resource)
+	if err != nil {
+		return 0, err
+	}
+	e := resource.Data.ProductVariants.Edges
+	if len(e) > 1 || len(e) == 0 {
+		return 0, fmt.Errorf("%d product variants found with sku %q", len(e), sku)
+	}
+	// potentially later use locationCount for early checks
+	return idFromGID(e[0].Node.ID)
+}
+
+func idFromGID(gid string) (int64, error) {
+	idx := strings.LastIndex(gid, "/")
+	if idx == -1 {
+		return 0, fmt.Errorf("gid %q doesn't contain %q", gid, "/")
+	}
+	idStr := gid[idx+1:]
+	i, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, err
+	}
+	return int64(i), nil
+}
+
+func getInventories(client *goshopify.Client, order *goshopify.Order) ([]*InventoryLevel, error) {
+	levels := make([]*InventoryLevel, 0, len(order.LineItems))
+	for _, lineItem := range order.LineItems {
+		if lineItem.VariantID != 0 {
+			level, err := GetIventoryLevel(client, 0, lineItem.VariantID)
+			if err != nil {
+				return nil, err
+			}
+			levels = append(levels, level)
+		}
+	}
+	return levels, nil
 }

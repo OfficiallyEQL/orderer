@@ -97,7 +97,8 @@ type VariantCmd struct {
 
 type VariantGetCmd struct {
 	Config
-	ID int64 `arg:"" required:"" help:"variant ID"`
+	ID  int64  `optional:"" arg:"" help:"variant ID" xor:"id"`
+	SKU string `help:"variant SKU" xor:"id"`
 }
 
 type VariantCreateCmd struct {
@@ -159,7 +160,15 @@ func (c *GetCmd) Run() error {
 }
 
 func (c *VariantGetCmd) Run() error {
-	variant, err := c.client.Variant.Get(c.ID, nil)
+	id := c.ID
+	if id == 0 {
+		var err error
+		id, err = order.GetVariantIDBySKU(c.client, c.SKU)
+		if err != nil {
+			return err
+		}
+	}
+	variant, err := c.client.Variant.Get(id, nil)
 	if err != nil {
 		return err
 	}
