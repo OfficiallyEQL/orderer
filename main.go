@@ -233,8 +233,6 @@ func (c *ListCmd) Run() error {
 		return err
 	}
 	fmt.Fprintln(c.out, "number of orders:", len(orders))
-	e := json.NewEncoder(c.out)
-	e.SetIndent("", "  ")
 	for _, o := range orders {
 		fmt.Fprintf(c.out, "id: %d name: %s email: %s\n", o.ID, o.Name, o.Email)
 	}
