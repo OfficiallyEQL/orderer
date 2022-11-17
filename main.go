@@ -35,7 +35,7 @@ type CLI struct {
 	Update  UpdateCmd  `cmd:"" help:"Update order"`
 	Merge   MergeCmd   `cmd:"" help:"Create or update order"`
 	Delete  DeleteCmd  `cmd:"" help:"Delete order"`
-	Replace ReplaceCmd `cmd:"" help:"Delete order first then create new one"`
+	Replace ReplaceCmd `cmd:"" help:"Replace order first then create new one"`
 
 	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
 	Inventory InventoryCmd `cmd:"" help:"Get inventory level including location for inventory_item_id or variant_id"`
@@ -93,7 +93,10 @@ type DeleteCmd struct {
 
 type ReplaceCmd struct {
 	Config
-	Order *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be replaced"`
+	Order         *goshopify.Order `required:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be replaced"`
+	Unique        bool             `short:"u" help:"assert order name is new"`
+	VerifyProduct bool             `short:"p" help:"verify that product variant for given variant id exists before creating order"`
+	Inventory     bool             `short:"i" help:"update inventory (-1) when order is created"`
 }
 
 type VariantCmd struct {
@@ -263,6 +266,20 @@ func (c *DeleteCmd) Run() error {
 	for _, id := range orderIDs {
 		fmt.Fprintln(c.out, "order deleted, ID:", id)
 	}
+	return nil
+}
+
+func (c *ReplaceCmd) Run() error {
+	opts := order.CreateOptions{
+		Unique:        c.Unique,
+		VerifyProduct: c.VerifyProduct,
+		Inventory:     c.Inventory,
+	}
+	o, err := order.Replace(c.client, c.Order, opts)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "order replaced, new ID:", o.ID)
 	return nil
 }
 

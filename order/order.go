@@ -183,6 +183,18 @@ func Delete(client *goshopify.Client, orderName string, opts DeleteOptions) ([]i
 	return deletedIDs, nil
 }
 
+func Replace(client *goshopify.Client, order *goshopify.Order, createOpts CreateOptions) (*goshopify.Order, error) {
+	delOpts := DeleteOptions{Unique: true}
+	ids, err := Delete(client, order.Name, delOpts)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) > 0 {
+		createOpts.Inventory = false // we have deleted one an order, presumably the inventory had been decremented for it.
+	}
+	return Create(client, order, createOpts)
+}
+
 func GetIventoryLevels(client *goshopify.Client, inventoryItemID, variantID int64) ([]*InventoryLevel, error) {
 	if inventoryItemID == 0 {
 		variant, err := client.Variant.Get(variantID, nil)
