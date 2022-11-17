@@ -90,6 +90,7 @@ func testConfig(t *testing.T, out io.Writer) *Config {
 		goshopify.WithLogger(logger),
 	}
 	client := goshopify.NewClient(goshopify.App{}, store, token, opts...)
+	client.Client.Timeout = 30 * time.Second
 	return &Config{
 		out:    out,
 		client: client,

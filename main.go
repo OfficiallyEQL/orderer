@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"time"
 
 	"github.com/OfficiallyEQL/orderer/order"
 	"github.com/alecthomas/kong"
@@ -157,6 +158,7 @@ func (c *Config) AfterApply() error {
 		opts = append(opts, goshopify.WithLogger(logger))
 	}
 	c.client = goshopify.NewClient(goshopify.App{}, c.Store, c.Token, opts...)
+	c.client.Client.Timeout = 30 * time.Second
 	return nil
 }
 
