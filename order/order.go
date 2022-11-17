@@ -278,6 +278,42 @@ func GetVariantIDBySKU(client *goshopify.Client, sku string) (int64, error) {
 	return idFromGID(e[0].Node.ID)
 }
 
+func CustomerListByEmail(client *goshopify.Client, email string) ([]goshopify.Customer, error) {
+	if email == "" {
+		return nil, fmt.Errorf("email is empty")
+	}
+	query := struct {
+		Email string `url:"email"`
+	}{Email: email}
+	return client.Customer.Search(query)
+}
+
+func CustomerListByPhone(client *goshopify.Client, phone string) ([]goshopify.Customer, error) {
+	if phone == "" {
+		return nil, fmt.Errorf("phone is empty")
+	}
+	query := struct {
+		Phone string `url:"phone"`
+	}{Phone: phone}
+	return client.Customer.Search(query)
+}
+
+func CustomerMerge(client *goshopify.Client, customer *goshopify.Customer) (*goshopify.Customer, error) {
+	customers, err := CustomerListByEmail(client, customer.Email)
+	if err != nil {
+		return nil, err
+	}
+	if len(customers) > 1 {
+		return nil, fmt.Errorf("more than 1 customer found for email %q", customer.Email)
+	}
+	if len(customers) == 1 {
+		c := *customer
+		c.ID = customers[0].ID
+		return client.Customer.Update(c)
+	}
+	return client.Customer.Create(*customer)
+}
+
 func idFromGID(gid string) (int64, error) {
 	idx := strings.LastIndex(gid, "/")
 	if idx == -1 {

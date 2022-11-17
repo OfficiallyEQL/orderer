@@ -40,6 +40,7 @@ type CLI struct {
 
 	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
 	Inventory InventoryCmd `cmd:"" help:"Get inventory level including location for inventory_item_id or variant_id"`
+	Customer  CustomerCmd  `cmd:""  help:"Get, List, Create, Merge and Delete customer"`
 
 	Version kong.VersionFlag `help:"Show version." env:"-"`
 }
@@ -135,6 +136,48 @@ type InventoryAdjustCmd struct {
 	Amount          int   `help:"adjust inventory levels for given product. Use negative number to reduce inventory."`
 }
 
+type CustomerCmd struct {
+	Get    CustomerGetCmd    `cmd:"" help:"Get customer levels by variant ID or Customer item ID"`
+	List   CustomerListCmd   `cmd:"" help:"List customers by identified by email address or phone number."`
+	Update CustomerUpdateCmd `cmd:"" help:"Update customer matched by email."`
+	Merge  CustomerMergeCmd  `cmd:"" help:"Update customer levels for given variant ID or Customer item ID."`
+	Delete CustomerDeleteCmd `cmd:"" help:"Update customer levels for given variant ID or Customer item ID."`
+	Create CustomerCreateCmd `cmd:"" help:"Create customer from JSON."`
+}
+
+type CustomerGetCmd struct {
+	Config
+	ID int64 `arg:"" help:"Get customer by ID"`
+}
+
+type CustomerListCmd struct {
+	Config
+	Email string `arg:"" optional:"" help:"Customer item ID" xor:"id"`
+	Phone string `help:"variant ID" xor:"id"`
+}
+
+type CustomerCreateCmd struct {
+	Config
+	Customer *goshopify.Customer `arg:"" type:"jsonfile" placeholder:"custoiemr.json" help:"File containing JSON encoded customer to be created"`
+}
+
+type CustomerUpdateCmd struct {
+	Config
+	Customer *goshopify.Customer `arg:"" type:"jsonfile" placeholder:"custoiemr.json" help:"File containing JSON encoded customer to be updated, matched by email"`
+}
+
+type CustomerMergeCmd struct {
+	Config
+	Customer *goshopify.Customer `optional:"" arg:"" type:"jsonfile" placeholder:"custoiemr.json" help:"File containing JSON encoded customer to be merged (created or updated), matched by email"`
+}
+
+type CustomerDeleteCmd struct {
+	Config
+	Customer *goshopify.Customer `optional:"" arg:"" type:"jsonfile" placeholder:"custoiemr.json" help:"File containing JSON encoded customer to be created" xor:"id"`
+	Email    string              `help:"email of customer to be deleted." xor:"id"`
+	ID       int64               `help:"ID of customer to be deleted." xor:"id"`
+}
+
 var kongOpts = []kong.Option{
 	kong.Description(description),
 	kong.DefaultEnvars("shopify"),
@@ -208,6 +251,87 @@ func (c *InventoryAdjustCmd) Run() error {
 		return err
 	}
 	return json.NewEncoder(c.out).Encode(resp)
+}
+
+func (c *CustomerGetCmd) Run() error {
+	customer, err := c.client.Customer.Get(c.ID, nil)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(customer)
+}
+
+func (c *CustomerUpdateCmd) Run() error {
+	customer, err := c.client.Customer.Update(*c.Customer)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "customer updated, ID:", customer.ID)
+	return nil
+}
+
+func (c *CustomerMergeCmd) Run() error {
+	customer, err := order.CustomerMerge(c.client, c.Customer)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "customer merged, ID:", customer.ID)
+	return nil
+}
+
+func (c *CustomerDeleteCmd) Run() error {
+	id := c.ID
+
+	if id == 0 {
+		email := c.Email
+		if email == "" {
+			email = c.Customer.Email
+		}
+		customers, err := order.CustomerListByEmail(c.client, email)
+		if err != nil {
+			return err
+		}
+		if len(customers) == 0 {
+			return nil
+		}
+		if len(customers) > 1 {
+			return fmt.Errorf("more than one customer found with email %q", email)
+		}
+		id = customers[0].ID
+	}
+	err := c.client.Customer.Delete(id)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "customer deleted, ID:", id)
+	return nil
+}
+
+func (c *CustomerListCmd) Run() error {
+	var customers []goshopify.Customer
+	var err error
+	if c.Email != "" {
+		customers, err = order.CustomerListByEmail(c.client, c.Email)
+	} else {
+		customers, err = order.CustomerListByPhone(c.client, c.Email)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "number of customers:", len(customers))
+	for _, customer := range customers {
+		fmt.Fprintf(c.out, "id: %d name: %s %s, email: %s, phone: %s\n", customer.ID, customer.FirstName, customer.LastName, customer.Email, customer.Phone)
+	}
+	return nil
+}
+
+func (c *CustomerCreateCmd) Run() error {
+	customer, err := c.client.Customer.Create(*c.Customer)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "customer created, ID:", customer.ID)
+	return nil
 }
 
 func (c *ListCmd) AfterApply() error {
