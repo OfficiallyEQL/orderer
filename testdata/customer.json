@@ -1,0 +1,23 @@
+{
+  "email": "morgen3@example.com",
+  "first_name": "Mary",
+  "last_name": "Morgan",
+  "verified_email": true,
+  "orders_count": 2,
+  "accepts_marketing": true,
+  "default_address": {
+    "first_name": "Mary",
+    "last_name": "Morgan",
+    "address1": "12 Example St",
+    "city": "HappyTown",
+    "province": "Victoria",
+    "country": "Australia",
+    "zip": "3333",
+    "phone": "+6141234566",
+    "name": "Mary Morgan",
+    "province_code": "VIC",
+    "country_code": "AU",
+    "country_name": "Australia",
+    "default": true
+  }
+}
