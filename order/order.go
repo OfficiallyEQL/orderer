@@ -195,6 +195,16 @@ func Replace(client *goshopify.Client, order *goshopify.Order, createOpts Create
 	return Create(client, order, createOpts)
 }
 
+func Meta(client *goshopify.Client, orderID int64) ([]goshopify.Metafield, error) {
+	resource := goshopify.MetafieldsResource{}
+	path := fmt.Sprintf("orders/%d/metafields.json", orderID)
+	err := client.Get(path, &resource, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resource.Metafields, nil
+}
+
 func GetIventoryLevels(client *goshopify.Client, inventoryItemID, variantID int64) ([]*InventoryLevel, error) {
 	if inventoryItemID == 0 {
 		variant, err := client.Variant.Get(variantID, nil)

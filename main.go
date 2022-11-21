@@ -32,6 +32,7 @@ identifier.
 type CLI struct {
 	Get     GetCmd     `cmd:"" help:"Get order by order ID"`
 	List    ListCmd    `cmd:"" help:"List first 50 orders with matching name"`
+	Meta    MetaCmd    `cmd:"" help:"List metafields for given order"`
 	Create  CreateCmd  `cmd:"" help:"Create order"`
 	Update  UpdateCmd  `cmd:"" help:"Update order"`
 	Merge   MergeCmd   `cmd:"" help:"Create or update order"`
@@ -62,6 +63,11 @@ type ListCmd struct {
 	Config
 	Order *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order name to be listed (only name matters)"`
 	Name  string
+}
+
+type MetaCmd struct {
+	Config
+	ID int64 `arg:"" required:"" help:"order ID"`
 }
 
 type CreateCmd struct {
@@ -211,6 +217,14 @@ func (c *GetCmd) Run() error {
 		return err
 	}
 	return json.NewEncoder(c.out).Encode(order)
+}
+
+func (c *MetaCmd) Run() error {
+	meta, err := order.Meta(c.client, c.ID)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(meta)
 }
 
 func (c *VariantGetCmd) Run() error {
