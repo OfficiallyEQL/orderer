@@ -205,6 +205,16 @@ func Meta(client *goshopify.Client, orderID int64) ([]goshopify.Metafield, error
 	return resource.Metafields, nil
 }
 
+func Transactions(client *goshopify.Client, orderID int64) ([]goshopify.Transaction, error) {
+	resource := goshopify.TransactionsResource{}
+	path := fmt.Sprintf("orders/%d/transactions.json", orderID)
+	err := client.Get(path, &resource, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resource.Transactions, nil
+}
+
 func GetIventoryLevels(client *goshopify.Client, inventoryItemID, variantID int64) ([]*InventoryLevel, error) {
 	if inventoryItemID == 0 {
 		variant, err := client.Variant.Get(variantID, nil)
