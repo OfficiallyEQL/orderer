@@ -30,14 +30,15 @@ identifier.
 )
 
 type CLI struct {
-	Get     GetCmd     `cmd:"" help:"Get order by order ID"`
-	List    ListCmd    `cmd:"" help:"List first 50 orders with matching name"`
-	Meta    MetaCmd    `cmd:"" help:"List metafields for given order"`
-	Create  CreateCmd  `cmd:"" help:"Create order"`
-	Update  UpdateCmd  `cmd:"" help:"Update order"`
-	Merge   MergeCmd   `cmd:"" help:"Create or update order"`
-	Delete  DeleteCmd  `cmd:"" help:"Delete order"`
-	Replace ReplaceCmd `cmd:"" help:"Replace order first then create new one"`
+	Get          GetCmd          `cmd:"" help:"Get order by order ID"`
+	List         ListCmd         `cmd:"" help:"List first 50 orders with matching name"`
+	Meta         MetaCmd         `cmd:"" help:"List metafields for given order"`
+	Transactions TransactionsCmd `cmd:"" help:"List Transactions for given order"`
+	Create       CreateCmd       `cmd:"" help:"Create order"`
+	Update       UpdateCmd       `cmd:"" help:"Update order"`
+	Merge        MergeCmd        `cmd:"" help:"Create or update order"`
+	Delete       DeleteCmd       `cmd:"" help:"Delete order"`
+	Replace      ReplaceCmd      `cmd:"" help:"Replace order first then create new one"`
 
 	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
 	Inventory InventoryCmd `cmd:"" help:"Get inventory level including location for inventory_item_id or variant_id"`
@@ -66,6 +67,11 @@ type ListCmd struct {
 }
 
 type MetaCmd struct {
+	Config
+	ID int64 `arg:"" required:"" help:"order ID"`
+}
+
+type TransactionsCmd struct {
 	Config
 	ID int64 `arg:"" required:"" help:"order ID"`
 }
@@ -225,6 +231,14 @@ func (c *MetaCmd) Run() error {
 		return err
 	}
 	return json.NewEncoder(c.out).Encode(meta)
+}
+
+func (c *TransactionsCmd) Run() error {
+	transactions, err := order.Transactions(c.client, c.ID)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(c.out).Encode(transactions)
 }
 
 func (c *VariantGetCmd) Run() error {
