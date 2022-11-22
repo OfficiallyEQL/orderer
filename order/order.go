@@ -24,6 +24,7 @@ type UpdateOptions struct {
 
 type DeleteOptions struct {
 	Unique bool
+	DryRun bool
 }
 
 type MergeResult struct {
@@ -166,7 +167,13 @@ func Merge(client *goshopify.Client, order *goshopify.Order, opts MergeOptions) 
 }
 
 func Delete(client *goshopify.Client, orderName string, opts DeleteOptions) ([]int64, error) {
-	orders, err := List(client, orderName)
+	var orders []goshopify.Order
+	var err error
+	if orderName == "" {
+		orders, err = client.Order.List(nil)
+	} else {
+		orders, err = List(client, orderName)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -175,12 +182,20 @@ func Delete(client *goshopify.Client, orderName string, opts DeleteOptions) ([]i
 	}
 	var deletedIDs []int64
 	for _, o := range orders {
+		if opts.DryRun {
+			deletedIDs = append(deletedIDs, o.ID)
+			continue
+		}
 		if err := client.Delete(fmt.Sprintf("orders/%d.json", o.ID)); err != nil {
 			return nil, err
 		}
 		deletedIDs = append(deletedIDs, o.ID)
 	}
 	return deletedIDs, nil
+}
+
+func DeleteByID(client *goshopify.Client, orderID int64) error {
+	return client.Delete(fmt.Sprintf("orders/%d.json", orderID))
 }
 
 func Replace(client *goshopify.Client, order *goshopify.Order, createOpts CreateOptions) (*goshopify.Order, error) {
