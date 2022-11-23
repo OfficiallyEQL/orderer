@@ -102,6 +102,7 @@ type DeleteCmd struct {
 	Config
 	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
 	Name   string
+	ID     int64
 	Unique bool `short:"u" help:"assert order name is used at most once"`
 }
 
@@ -402,6 +403,13 @@ func (c *DeleteCmd) OrderName() string {
 }
 
 func (c *DeleteCmd) Run() error {
+	if c.ID != 0 {
+		if err := order.DeleteByID(c.client, c.ID); err != nil {
+			return err
+		}
+		fmt.Fprintln(c.out, "order deleted, ID:", c.ID)
+		return nil
+	}
 	opts := order.DeleteOptions{Unique: c.Unique, DryRun: true}
 	orderIDs, err := order.Delete(c.client, c.OrderName(), opts)
 	if err != nil {
