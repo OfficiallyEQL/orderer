@@ -1,14 +1,20 @@
 {
-    "name" : "order1",
-    "email": "jay@example.com",
-    "fulfillment_status": "unfulfilled",
-    "line_items":
-    [
+  "name": "order1",
+  "email": "jay@example.com",
+  "fulfillment_status": "unfulfilled",
+  "line_items": [
+    {
+      "variant_id": 43434424271066,
+      "quantity": 1,
+      "price": 1,
+      "total": 1,
+      "tax_lines": [
         {
-            "variant_id": 43434424271066,
-            "quantity": 1,
-            "price": 1,
-            "total": 1
+          "title": "GST",
+          "price": "12.73",
+          "rate": "0.1"
         }
-    ]
+      ]
+    }
+  ]
 }

@@ -102,6 +102,7 @@ type DeleteCmd struct {
 	Config
 	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
 	Name   string
+	ID     int64
 	Unique bool `short:"u" help:"assert order name is used at most once"`
 }
 
@@ -391,32 +392,35 @@ func (c *ListCmd) Run() error {
 	return nil
 }
 
-func (c *DeleteCmd) AfterApply() error {
-	if err := c.Config.AfterApply(); err != nil {
-		return err
-	}
-	if c.Name == "" && c.Order.Name == "" {
-		return errors.New("no order name given")
-	}
-	return nil
-}
-
 func (c *DeleteCmd) OrderName() string {
 	if c.Name != "" {
 		return c.Name
 	}
-	return c.Order.Name
+	if c.Order != nil {
+		return c.Order.Name
+	}
+	return ""
 }
 
 func (c *DeleteCmd) Run() error {
-	opts := order.DeleteOptions{Unique: c.Unique}
+	if c.ID != 0 {
+		if err := order.DeleteByID(c.client, c.ID); err != nil {
+			return err
+		}
+		fmt.Fprintln(c.out, "order deleted, ID:", c.ID)
+		return nil
+	}
+	opts := order.DeleteOptions{Unique: c.Unique, DryRun: true}
 	orderIDs, err := order.Delete(c.client, c.OrderName(), opts)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintln(c.out, "number of orders to delete:", len(orderIDs))
-	for _, id := range orderIDs {
-		fmt.Fprintln(c.out, "order deleted, ID:", id)
+	for _, orderID := range orderIDs {
+		if err := order.DeleteByID(c.client, orderID); err != nil {
+			return err
+		}
+		fmt.Fprintln(c.out, "order deleted, ID:", orderID)
 	}
 	return nil
 }
