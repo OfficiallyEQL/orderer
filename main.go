@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/OfficiallyEQL/orderer/order"
@@ -43,6 +45,7 @@ type CLI struct {
 	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
 	Inventory InventoryCmd `cmd:"" help:"Get inventory level including location for inventory_item_id or variant_id"`
 	Customer  CustomerCmd  `cmd:""  help:"Get, List, Create, Merge and Delete customer"`
+	Scopes    ScopesCmd    `cmd:"" help:"Get scopes for given Admin token"`
 
 	Version kong.VersionFlag `help:"Show version." env:"-"`
 }
@@ -191,6 +194,10 @@ type CustomerDeleteCmd struct {
 	ID       int64               `help:"ID of customer to be deleted." xor:"id"`
 }
 
+type ScopesCmd struct {
+	Config
+}
+
 var kongOpts = []kong.Option{
 	kong.Description(description),
 	kong.DefaultEnvars("shopify"),
@@ -205,17 +212,24 @@ func main() {
 
 func (c *Config) AfterApply() error {
 	c.out = os.Stdout
+	c.client = newClient(c, true)
+	return nil
+}
+
+func newClient(c *Config, withVersion bool) *goshopify.Client {
 	opts := []goshopify.Option{
-		goshopify.WithVersion("2022-10"),
 		goshopify.WithRetry(5),
+	}
+	if withVersion {
+		opts = append(opts, goshopify.WithVersion("2022-10"))
 	}
 	if c.ShopifyLogs != LogLevelNone {
 		logger := NewLogger(os.Stdout, c.ShopifyLogs)
 		opts = append(opts, goshopify.WithLogger(logger))
 	}
-	c.client = goshopify.NewClient(goshopify.App{}, c.Store, c.Token, opts...)
-	c.client.Client.Timeout = 30 * time.Second
-	return nil
+	client := goshopify.NewClient(goshopify.App{}, c.Store, c.Token, opts...)
+	client.Client.Timeout = 30 * time.Second
+	return client
 }
 
 func (c *GetCmd) Run() error {
@@ -469,6 +483,24 @@ func (c *MergeCmd) Run() error {
 		return err
 	}
 	fmt.Fprintf(c.out, "order merged (%s), ID: %d\n", result.Label, result.OrderID)
+	return nil
+}
+
+func (c *ScopesCmd) Run() error {
+	c.client = newClient(&c.Config, false)
+
+	resource := goshopify.AccessScopesResource{}
+	err := c.client.CreateAndDo("GET", "oauth/access_scopes.json", nil, nil, &resource)
+	if err != nil {
+		return err
+	}
+	scopes := make([]string, 0, len(resource.AccessScopes))
+
+	for _, scope := range resource.AccessScopes {
+		scopes = append(scopes, scope.Handle)
+	}
+	sort.Strings(scopes)
+	fmt.Fprintf(c.out, "%d scopes:\n%s\n", len(resource.AccessScopes), strings.Join(scopes, "\n"))
 	return nil
 }
 
