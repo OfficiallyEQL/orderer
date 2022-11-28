@@ -25,6 +25,7 @@ type UpdateOptions struct {
 type DeleteOptions struct {
 	Unique bool
 	DryRun bool
+	Max    int
 }
 
 type MergeResult struct {
@@ -181,7 +182,10 @@ func Delete(client *goshopify.Client, orderName string, opts DeleteOptions) ([]i
 		return nil, fmt.Errorf("more than one order with name %q", orderName)
 	}
 	var deletedIDs []int64
-	for _, o := range orders {
+	for i, o := range orders {
+		if opts.Max != -1 && i >= opts.Max {
+			break
+		}
 		if opts.DryRun {
 			deletedIDs = append(deletedIDs, o.ID)
 			continue

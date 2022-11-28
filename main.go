@@ -66,7 +66,7 @@ type GetCmd struct {
 type ListCmd struct {
 	Config
 	Order *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order name to be listed (only name matters)"`
-	Name  string
+	Name  string           `help:"name of order(s) to be listed"`
 }
 
 type MetaCmd struct {
@@ -104,9 +104,10 @@ type UpdateCmd struct {
 type DeleteCmd struct {
 	Config
 	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
-	Name   string
-	ID     int64
-	Unique bool `short:"u" help:"assert order name is used at most once"`
+	Max    int              `help:"maximum number of orders to be deleted. <= 50 (page size). default: no limit" default:"-1"`
+	Name   string           `help:"name of order(s) to be deleted"`
+	ID     int64            `help:"id of order to be deleted"`
+	Unique bool             `short:"u" help:"assert order name is used at most once"`
 }
 
 type ReplaceCmd struct {
@@ -424,7 +425,7 @@ func (c *DeleteCmd) Run() error {
 		fmt.Fprintln(c.out, "order deleted, ID:", c.ID)
 		return nil
 	}
-	opts := order.DeleteOptions{Unique: c.Unique, DryRun: true}
+	opts := order.DeleteOptions{Unique: c.Unique, DryRun: true, Max: c.Max}
 	orderIDs, err := order.Delete(c.client, c.OrderName(), opts)
 	if err != nil {
 		return err
