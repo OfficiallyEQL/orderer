@@ -66,7 +66,7 @@ type GetCmd struct {
 type ListCmd struct {
 	Config
 	Order *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order name to be listed (only name matters)"`
-	Name  string
+	Name  string           `help:"name of order(s) to be listed"`
 }
 
 type MetaCmd struct {
