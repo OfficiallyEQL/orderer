@@ -40,6 +40,7 @@ type CLI struct {
 	Update       UpdateCmd       `cmd:"" help:"Update order"`
 	Merge        MergeCmd        `cmd:"" help:"Create or update order"`
 	Delete       DeleteCmd       `cmd:"" help:"Delete order"`
+	BatchDelete  BatchDeleteCmd  `cmd:"" help:"Delete orders"`
 	Replace      ReplaceCmd      `cmd:"" help:"Replace order first then create new one"`
 
 	Variant   VariantCmd   `cmd:"" help:"Get product variant by variant ID"`
@@ -104,10 +105,14 @@ type UpdateCmd struct {
 type DeleteCmd struct {
 	Config
 	Order  *goshopify.Order `optional:"" arg:"" type:"jsonfile" placeholder:"order.json" help:"File containing JSON encoded order to be deleted"`
-	Max    int              `help:"maximum number of orders to be deleted. <= 50 (page size). default: no limit" default:"-1"`
-	Name   string           `help:"name of order(s) to be deleted"`
-	ID     int64            `help:"id of order to be deleted"`
+	Name   string           `help:"name of order(s) to be deleted" xor:"id"`
+	ID     int64            `help:"id of order to be deleted" xor:"id"`
 	Unique bool             `short:"u" help:"assert order name is used at most once"`
+}
+
+type BatchDeleteCmd struct {
+	Config
+	Max int `arg:"" help:"maximum number of orders to be deleted. <= 50 (page size). default: no limit" default:"-1"`
 }
 
 type ReplaceCmd struct {
@@ -154,12 +159,13 @@ type InventoryAdjustCmd struct {
 }
 
 type CustomerCmd struct {
-	Get    CustomerGetCmd    `cmd:"" help:"Get customer levels by variant ID or Customer item ID"`
-	List   CustomerListCmd   `cmd:"" help:"List customers by identified by email address or phone number."`
-	Update CustomerUpdateCmd `cmd:"" help:"Update customer matched by email."`
-	Merge  CustomerMergeCmd  `cmd:"" help:"Update customer levels for given variant ID or Customer item ID."`
-	Delete CustomerDeleteCmd `cmd:"" help:"Update customer levels for given variant ID or Customer item ID."`
-	Create CustomerCreateCmd `cmd:"" help:"Create customer from JSON."`
+	Get         CustomerGetCmd         `cmd:"" help:"Get customer levels by variant ID or Customer item ID"`
+	List        CustomerListCmd        `cmd:"" help:"List customers by identified by email address or phone number."`
+	Update      CustomerUpdateCmd      `cmd:"" help:"Update customer matched by email."`
+	Merge       CustomerMergeCmd       `cmd:"" help:"Update or create matched by email."`
+	Delete      CustomerDeleteCmd      `cmd:"" help:"Delete customer matched by email."`
+	BatchDelete CustomerBatchDeleteCmd `cmd:"" help:"Update customers."`
+	Create      CustomerCreateCmd      `cmd:"" help:"Create customer from JSON."`
 }
 
 type CustomerGetCmd struct {
@@ -193,6 +199,12 @@ type CustomerDeleteCmd struct {
 	Customer *goshopify.Customer `optional:"" arg:"" type:"jsonfile" placeholder:"custoiemr.json" help:"File containing JSON encoded customer to be created" xor:"id"`
 	Email    string              `help:"email of customer to be deleted." xor:"id"`
 	ID       int64               `help:"ID of customer to be deleted." xor:"id"`
+	Max      int                 `help:"maximum number of customers to be deleted. <= 50 (page size). default: no limit" default:"-1"`
+}
+
+type CustomerBatchDeleteCmd struct {
+	Config
+	Max int `arg:"" help:"maximum number of customers to be deleted. <= 50 (page size). default: no limit" default:"-1"`
 }
 
 type ScopesCmd struct {
@@ -325,7 +337,6 @@ func (c *CustomerMergeCmd) Run() error {
 
 func (c *CustomerDeleteCmd) Run() error {
 	id := c.ID
-
 	if id == 0 {
 		email := c.Email
 		if email == "" {
@@ -348,6 +359,27 @@ func (c *CustomerDeleteCmd) Run() error {
 		return err
 	}
 	fmt.Fprintln(c.out, "customer deleted, ID:", id)
+	return nil
+}
+
+func (c *CustomerBatchDeleteCmd) Run() error {
+	customers, err := c.client.Customer.List(nil)
+	if err != nil {
+		return err
+	}
+	cnt := c.Max
+	if len(customers) < cnt {
+		cnt = len(customers)
+	}
+	fmt.Fprintf(c.out, "deleting %d customers\n", cnt)
+
+	for i := 0; i < cnt; i++ {
+		err := c.client.Customer.Delete(customers[i].ID)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(c.out, "customer deleted, ID:", customers[i].ID)
+	}
 	return nil
 }
 
@@ -425,8 +457,24 @@ func (c *DeleteCmd) Run() error {
 		fmt.Fprintln(c.out, "order deleted, ID:", c.ID)
 		return nil
 	}
-	opts := order.DeleteOptions{Unique: c.Unique, DryRun: true, Max: c.Max}
+	opts := order.DeleteOptions{Unique: c.Unique, DryRun: true, Max: -1}
 	orderIDs, err := order.Delete(c.client, c.OrderName(), opts)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(c.out, "number of orders to delete:", len(orderIDs))
+	for _, orderID := range orderIDs {
+		if err := order.DeleteByID(c.client, orderID); err != nil {
+			return err
+		}
+		fmt.Fprintln(c.out, "order deleted, ID:", orderID)
+	}
+	return nil
+}
+
+func (c *BatchDeleteCmd) Run() error {
+	opts := order.DeleteOptions{DryRun: true, Max: c.Max}
+	orderIDs, err := order.Delete(c.client, "", opts)
 	if err != nil {
 		return err
 	}
