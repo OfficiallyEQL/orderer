@@ -21,7 +21,7 @@ func TestRun(t *testing.T) {
 	order := testOrder(t, "testdata/order.json")
 	uniqueOrderName := fmt.Sprintf("%s-%d", order.Name, time.Now().UnixMilli()%10000) // to avoid collisions on concurrent runs
 	order.Name = uniqueOrderName
-	deleteCmd := DeleteCmd{Config: *cfg, Order: order, Max: -1}
+	deleteCmd := DeleteCmd{Config: *cfg, Order: order}
 	require.NoError(t, deleteCmd.Run())
 
 	got.Reset()
@@ -73,7 +73,7 @@ func TestRun(t *testing.T) {
 	require.Error(t, mergeCmd.Run())
 
 	got.Reset()
-	deleteCmd = DeleteCmd{Config: *cfg, Order: order, Max: -1}
+	deleteCmd = DeleteCmd{Config: *cfg, Order: order}
 	require.NoError(t, deleteCmd.Run())
 	want = "number of orders to delete: 2"
 	require.Equal(t, want, got.String()[:len(want)])
