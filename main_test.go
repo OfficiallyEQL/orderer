@@ -22,6 +22,7 @@ func TestRun(t *testing.T) {
 	uniqueOrderName := fmt.Sprintf("%s-%d", order.Name, time.Now().UnixMilli()%10000) // to avoid collisions on concurrent runs
 	order.Name = uniqueOrderName
 	deleteCmd := DeleteCmd{Config: *cfg, Order: order}
+	fmt.Println("STORE-----", cfg.Store, deleteCmd.Store)
 	require.NoError(t, deleteCmd.Run())
 
 	got.Reset()
@@ -92,6 +93,7 @@ func testConfig(t *testing.T, out io.Writer) *Config {
 	client := goshopify.NewClient(goshopify.App{}, store, token, opts...)
 	client.Client.Timeout = 30 * time.Second
 	return &Config{
+		Store:  store,
 		out:    out,
 		client: client,
 	}

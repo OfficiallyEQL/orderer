@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -29,6 +28,7 @@ It can be used as an importing tool.
 The order is provided in JSON file and its "name" attribute serves as
 identifier.
 `
+	whitelist = map[string]bool{"eql-dev": true, "julias-delights": true}
 )
 
 type CLI struct {
@@ -286,6 +286,9 @@ func (c *VariantGetCmd) Run() error {
 }
 
 func (c *VariantCreateCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	variant, err := c.client.Variant.Create(c.Variant.ProductID, *c.Variant)
 	if err != nil {
 		return err
@@ -302,6 +305,9 @@ func (c *InventoryGetCmd) Run() error {
 }
 
 func (c *InventoryAdjustCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	resp, err := order.AdjustIventoryLevel(c.client, c.LocationID, c.InventoryItemID, c.VariantID, c.Amount)
 	if err != nil {
 		return err
@@ -318,6 +324,9 @@ func (c *CustomerGetCmd) Run() error {
 }
 
 func (c *CustomerUpdateCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	customer, err := c.client.Customer.Update(*c.Customer)
 	if err != nil {
 		return err
@@ -327,6 +336,9 @@ func (c *CustomerUpdateCmd) Run() error {
 }
 
 func (c *CustomerMergeCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	customer, err := order.CustomerMerge(c.client, c.Customer)
 	if err != nil {
 		return err
@@ -336,6 +348,9 @@ func (c *CustomerMergeCmd) Run() error {
 }
 
 func (c *CustomerDeleteCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	id := c.ID
 	if id == 0 {
 		email := c.Email
@@ -363,6 +378,9 @@ func (c *CustomerDeleteCmd) Run() error {
 }
 
 func (c *CustomerBatchDeleteCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	customers, err := c.client.Customer.List(nil)
 	if err != nil {
 		return err
@@ -402,6 +420,9 @@ func (c *CustomerListCmd) Run() error {
 }
 
 func (c *CustomerCreateCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	customer, err := c.client.Customer.Create(*c.Customer)
 	if err != nil {
 		return err
@@ -414,9 +435,6 @@ func (c *ListCmd) AfterApply() error {
 	if err := c.Config.AfterApply(); err != nil {
 		return err
 	}
-	if c.Name == "" && c.Order.Name == "" {
-		return errors.New("no order name given")
-	}
 	return nil
 }
 
@@ -424,11 +442,17 @@ func (c *ListCmd) OrderName() string {
 	if c.Name != "" {
 		return c.Name
 	}
-	return c.Order.Name
+	if c.Order != nil {
+		return c.Order.Name
+	}
+	return ""
 }
 
 func (c *ListCmd) Run() error {
-	orders, err := order.List(c.client, c.OrderName())
+	name := c.OrderName()
+	var orders []goshopify.Order
+	var err error
+	orders, err = order.List(c.client, name)
 	if err != nil {
 		return err
 	}
@@ -450,6 +474,9 @@ func (c *DeleteCmd) OrderName() string {
 }
 
 func (c *DeleteCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	if c.ID != 0 {
 		if err := order.DeleteByID(c.client, c.ID); err != nil {
 			return err
@@ -473,6 +500,9 @@ func (c *DeleteCmd) Run() error {
 }
 
 func (c *BatchDeleteCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	opts := order.DeleteOptions{DryRun: true, Max: c.Max}
 	orderIDs, err := order.Delete(c.client, "", opts)
 	if err != nil {
@@ -489,6 +519,9 @@ func (c *BatchDeleteCmd) Run() error {
 }
 
 func (c *ReplaceCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	opts := order.CreateOptions{
 		Unique:        c.Unique,
 		VerifyProduct: c.VerifyProduct,
@@ -503,6 +536,9 @@ func (c *ReplaceCmd) Run() error {
 }
 
 func (c *CreateCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	opts := order.CreateOptions{
 		Unique:        c.Unique,
 		VerifyProduct: c.VerifyProduct,
@@ -517,6 +553,9 @@ func (c *CreateCmd) Run() error {
 }
 
 func (c *UpdateCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	o, err := order.Update(c.client, c.Order)
 	if err != nil {
 		return err
@@ -526,6 +565,9 @@ func (c *UpdateCmd) Run() error {
 }
 
 func (c *MergeCmd) Run() error {
+	if !whitelist[c.Store] {
+		return fmt.Errorf("write command for non whitelisted shop %q", c.Store)
+	}
 	opts := order.MergeOptions{VerifyProduct: c.VerifyProduct}
 	result, err := order.Merge(c.client, c.Order, opts)
 	if err != nil {

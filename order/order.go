@@ -72,7 +72,7 @@ type VariantGQLResult struct {
 
 func List(client *goshopify.Client, orderName string) ([]goshopify.Order, error) {
 	if orderName == "" {
-		return nil, fmt.Errorf("order name is empty")
+		return client.Order.List(nil)
 	}
 	ordersResource := goshopify.OrdersResource{}
 	query := struct {
