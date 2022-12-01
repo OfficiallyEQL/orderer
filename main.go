@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"sort"
@@ -130,8 +132,9 @@ type VariantCmd struct {
 
 type VariantGetCmd struct {
 	Config
-	ID  int64  `optional:"" arg:"" help:"variant ID" xor:"id"`
-	SKU string `help:"variant SKU" xor:"id"`
+	ID               int64  `optional:"" arg:"" help:"variant ID" xor:"id"`
+	SKU              string `help:"variant SKU" xor:"id"`
+	IncludeInventory bool   `help:"include inventory with SKU lookup"`
 }
 
 type VariantCreateCmd struct {
@@ -273,7 +276,7 @@ func (c *VariantGetCmd) Run() error {
 	id := c.ID
 	if id == 0 {
 		var err error
-		id, err = order.GetVariantIDBySKU(c.client, c.SKU)
+		id, err = order.GetVariantIDBySKU(c.client, c.SKU, c.IncludeInventory)
 		if err != nil {
 			return err
 		}
@@ -394,6 +397,13 @@ func (c *CustomerBatchDeleteCmd) Run() error {
 	for i := 0; i < cnt; i++ {
 		err := c.client.Customer.Delete(customers[i].ID)
 		if err != nil {
+			gerr := goshopify.ResponseError{}
+			if errors.As(err, &gerr) {
+				if gerr.GetStatus() == http.StatusUnprocessableEntity {
+					fmt.Printf("Cannot delete customer %d - maybe still used in order? Continuing\n", customers[i].ID)
+					continue
+				}
+			}
 			return err
 		}
 		fmt.Fprintln(c.out, "customer deleted, ID:", customers[i].ID)

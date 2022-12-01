@@ -290,14 +290,19 @@ func AdjustIventoryLevel(client *goshopify.Client, locaitonID, inventoryItemID, 
 	return resource.InventoryLevel, nil
 }
 
-func GetVariantIDBySKU(client *goshopify.Client, sku string) (int64, error) {
+func GetVariantIDBySKU(client *goshopify.Client, sku string, includeInvenotry bool) (int64, error) {
+	query := "query($filter: String!) { productVariants(first: 2, query: $filter) { edges { node { id  title } } } }"
+	if includeInvenotry {
+		query = "query($filter: String!) { productVariants(first: 2, query: $filter) { edges { node { id  title inventoryItem  { id locationsCount } } } } }"
+	}
+
 	requestPayload := struct {
 		Query     string `json:"query"`
 		Variables struct {
 			Filter string `json:"filter"`
 		} `json:"variables"`
 	}{
-		Query: "query($filter: String!) { productVariants(first: 2, query: $filter) { edges { node { id  title inventoryItem  { id locationsCount } } } } }",
+		Query: query,
 		Variables: struct {
 			Filter string `json:"filter"`
 		}{
